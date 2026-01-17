@@ -21,12 +21,43 @@
   inherits: false;
 }
 
+/* CSS Properties for randomized transition timings */
+@property --sleeve-tilt-duration {
+  syntax: '<time>';
+  initial-value: 0.25s;
+  inherits: false;
+}
+
+@property --sleeve-lift-duration {
+  syntax: '<time>';
+  initial-value: 0.25s;
+  inherits: false;
+}
+
+@property --sleeve-lift-delay {
+  syntax: '<time>';
+  initial-value: 0.05s;
+  inherits: false;
+}
+
+@property --sleeve-rotate-z-duration {
+  syntax: '<time>';
+  initial-value: 0.3s;
+  inherits: false;
+}
+
+@property --sleeve-rotate-z-delay {
+  syntax: '<time>';
+  initial-value: 0.1s;
+  inherits: false;
+}
+
 .sleeve-3d {
   transform: rotateX(var(--sleeve-tilt)) rotateZ(var(--sleeve-rotate-z)) translateY(var(--sleeve-lift));
   transition:
-    --sleeve-tilt 0.25s ease-out,
-    --sleeve-lift 0.25s ease-out 0.05s,
-    --sleeve-rotate-z 0.3s ease-out 0.1s,
+    --sleeve-tilt var(--sleeve-tilt-duration) ease-out,
+    --sleeve-lift var(--sleeve-lift-duration) ease-out var(--sleeve-lift-delay),
+    --sleeve-rotate-z var(--sleeve-rotate-z-duration) ease-out var(--sleeve-rotate-z-delay),
     box-shadow 0.25s ease-out;
 }
 

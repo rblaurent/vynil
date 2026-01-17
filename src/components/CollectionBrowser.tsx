@@ -29,9 +29,20 @@ export function CollectionBrowser({
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // Random rotation for hovered sleeve - changes each time we hover a new sleeve
-  const hoverRotation = useMemo(() => {
-    return -1 - Math.random(); // Random between -1 and -2
+  // Random values for hovered sleeve - changes each time we hover a new sleeve
+  const hoverRandoms = useMemo(() => {
+    // Helper: apply ±10% randomness to a base value
+    const jitter = (base: number) => base * (0.9 + Math.random() * 0.2);
+
+    return {
+      rotation: -1 - Math.random(), // Random between -1 and -2
+      liftFactor: jitter(1), // ±10% on lift
+      tiltDuration: jitter(0.25),
+      liftDuration: jitter(0.25),
+      liftDelay: jitter(0.05),
+      rotateZDuration: jitter(0.3),
+      rotateZDelay: jitter(0.1),
+    };
   }, [hoveredIndex]);
 
   // Infinite scroll
@@ -64,8 +75,8 @@ export function CollectionBrowser({
     if (distance === 0) {
       // Hovered sleeve - pull it out with slight rotation like being held
       tilt = HOVER_TILT;
-      lift = -65;
-      rotate = hoverRotation; // Small Z rotation for natural "held" feel
+      lift = -65 * hoverRandoms.liftFactor; // Apply ±10% randomness
+      rotate = hoverRandoms.rotation; // Small Z rotation for natural "held" feel
     } else if (distance !== null) {
       // V-shape spread: \\\/////
       const absDist = Math.abs(distance);
@@ -85,7 +96,7 @@ export function CollectionBrowser({
       }
     }
 
-    return {
+    const style: React.CSSProperties = {
       width: SLEEVE_HEIGHT,
       height: SLEEVE_HEIGHT,
       '--sleeve-tilt': `${tilt}deg`,
@@ -93,7 +104,20 @@ export function CollectionBrowser({
       '--sleeve-lift': `${lift + push}px`,
       transformOrigin: 'center bottom',
       boxShadow: distance === 0 ? '0 -8px 32px rgba(0,0,0,0.5)' : 'none',
-    } as React.CSSProperties;
+    };
+
+    // Apply randomized timings to hovered sleeve
+    if (distance === 0) {
+      Object.assign(style, {
+        '--sleeve-tilt-duration': `${hoverRandoms.tiltDuration}s`,
+        '--sleeve-lift-duration': `${hoverRandoms.liftDuration}s`,
+        '--sleeve-lift-delay': `${hoverRandoms.liftDelay}s`,
+        '--sleeve-rotate-z-duration': `${hoverRandoms.rotateZDuration}s`,
+        '--sleeve-rotate-z-delay': `${hoverRandoms.rotateZDelay}s`,
+      });
+    }
+
+    return style;
   };
 
   return (
