@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Properties for animatable sleeve transforms */
+@property --sleeve-tilt {
+  syntax: '<angle>';
+  initial-value: -78deg;
+  inherits: false;
+}
+
+@property --sleeve-rotate-z {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@property --sleeve-lift {
+  syntax: '<length>';
+  initial-value: 0px;
+  inherits: false;
+}
+
+.sleeve-3d {
+  transform: rotateX(var(--sleeve-tilt)) rotateZ(var(--sleeve-rotate-z)) translateY(var(--sleeve-lift));
+  transition:
+    --sleeve-tilt 0.25s ease-out,
+    --sleeve-lift 0.25s ease-out 0.05s,
+    --sleeve-rotate-z 0.3s ease-out 0.1s,
+    box-shadow 0.25s ease-out;
+}
+
 * {
   box-sizing: border-box;
 }

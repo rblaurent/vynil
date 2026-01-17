@@ -88,11 +88,12 @@ export function CollectionBrowser({
     return {
       width: SLEEVE_HEIGHT,
       height: SLEEVE_HEIGHT,
-      transform: `rotateX(${tilt}deg) rotateZ(${rotate}deg) translateY(${lift + push}px)`,
+      '--sleeve-tilt': `${tilt}deg`,
+      '--sleeve-rotate-z': `${rotate}deg`,
+      '--sleeve-lift': `${lift + push}px`,
       transformOrigin: 'center bottom',
-      transition: 'transform 0.25s ease-out, box-shadow 0.25s ease-out',
       boxShadow: distance === 0 ? '0 -8px 32px rgba(0,0,0,0.5)' : 'none',
-    };
+    } as React.CSSProperties;
   };
 
   return (
@@ -161,7 +162,7 @@ export function CollectionBrowser({
                 >
                   {/* The sleeve - bottom anchored at slot bottom, centered */}
                   <div
-                    className="absolute rounded overflow-hidden left-1/2"
+                    className="sleeve-3d absolute rounded overflow-hidden left-1/2"
                     style={{
                       ...style,
                       bottom: 0,
