@@ -138,7 +138,7 @@ function App() {
           </div>
 
           {/* Collection Browser Sidebar */}
-          <div className="w-80 lg:w-96 border-l border-spotify-elevated">
+          <div className="w-[28rem] lg:w-[32rem] border-l border-spotify-elevated overflow-visible">
             <CollectionBrowser
               albums={albums}
               isLoading={albumsLoading}

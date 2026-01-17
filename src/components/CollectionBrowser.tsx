@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SpotifyAlbum } from '../types/spotify';
 
 interface CollectionBrowserProps {
@@ -11,10 +11,11 @@ interface CollectionBrowserProps {
 }
 
 // Constants
-const SLOT_HEIGHT = 28; // Fixed grid height for each slot
+const RACK_SCALE = 1.4; // Scale factor for the whole rack
+const SLOT_HEIGHT = 12; // Fixed grid height for each slot (tighter packing)
 const SLEEVE_HEIGHT = 160; // Visual height of the sleeve
-const BASE_TILT = 75; // Degrees tilted back when at rest
-const HOVER_TILT = 20; // Degrees when pulled out to view
+const BASE_TILT = -78; // Degrees tilted (negative = top toward viewer)
+const HOVER_TILT = -40; // Degrees when pulled out to view (more upright)
 
 export function CollectionBrowser({
   albums,
@@ -27,6 +28,11 @@ export function CollectionBrowser({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  // Random rotation for hovered sleeve - changes each time we hover a new sleeve
+  const hoverRotation = useMemo(() => {
+    return -1 - Math.random(); // Random between -1 and -2
+  }, [hoveredIndex]);
 
   // Infinite scroll
   useEffect(() => {
@@ -53,47 +59,70 @@ export function CollectionBrowser({
     let tilt = BASE_TILT;
     let lift = 0;
     let push = 0;
+    let rotate = 0;
 
     if (distance === 0) {
-      // Hovered sleeve - pull it out
+      // Hovered sleeve - pull it out with slight rotation like being held
       tilt = HOVER_TILT;
-      lift = -20;
-    } else if (distance !== null && Math.abs(distance) === 1) {
-      // Immediate neighbors - compress slightly
-      tilt = BASE_TILT + 3;
-      push = distance < 0 ? -2 : 2;
-    } else if (distance !== null && Math.abs(distance) === 2) {
-      // Second neighbors - subtle effect
-      tilt = BASE_TILT + 1;
+      lift = -65;
+      rotate = hoverRotation; // Small Z rotation for natural "held" feel
+    } else if (distance !== null) {
+      // V-shape spread: \\\/////
+      const absDist = Math.abs(distance);
+
+      if (distance < 0 && absDist <= 15) {
+        // Records BEFORE (above) - being pushed, gradual decay so 15th is barely affected
+        const intensity = 38 * (1 - absDist / 16); // 38 at dist 1, ~2 at dist 15
+        tilt = BASE_TILT + intensity;
+        const slideAmount = 25 * (1 - absDist / 16);
+        push = -slideAmount;
+      } else if (distance > 0 && absDist <= 6) {
+        // Records AFTER (below)
+        const intensity = 15 * (1 - absDist / 7);
+        tilt = BASE_TILT - intensity;
+        const slideAmount = 12 * (1 - absDist / 7);
+        push = slideAmount;
+      }
     }
 
     return {
+      width: SLEEVE_HEIGHT,
       height: SLEEVE_HEIGHT,
-      transform: `rotateX(${tilt}deg) translateY(${lift + push}px)`,
+      transform: `rotateX(${tilt}deg) rotateZ(${rotate}deg) translateY(${lift + push}px)`,
       transformOrigin: 'center bottom',
       transition: 'transform 0.25s ease-out, box-shadow 0.25s ease-out',
-      boxShadow: distance === 0
-        ? '0 -8px 32px rgba(0,0,0,0.5)'
-        : '0 -2px 8px rgba(0,0,0,0.2)',
-      zIndex: distance === 0 ? 100 : 50 - Math.abs(distance ?? index),
+      boxShadow: distance === 0 ? '0 -8px 32px rgba(0,0,0,0.5)' : 'none',
     };
   };
 
   return (
-    <div className="h-full flex flex-col bg-spotify-dark">
-      <div className="p-4 border-b border-spotify-elevated">
+    <div className="h-full bg-spotify-dark relative">
+      {/* Header - lower z-index so rack can overflow over it */}
+      <div className="absolute top-0 left-0 right-0 p-4 border-b border-spotify-elevated z-10 bg-spotify-dark">
         <h2 className="text-xl font-bold text-white">Your Library</h2>
         <p className="text-sm text-gray-400">{albums.length} albums</p>
       </div>
 
-      {/* Vinyl Rack */}
-      <div
-        className="flex-1 overflow-y-auto"
-        style={{ perspective: '800px' }}
-      >
-        <div className="relative mx-4 my-6">
+      {/* Vinyl Rack - scrollable, rack can overflow upward */}
+      <div className="absolute inset-0 pt-16 overflow-y-auto overflow-x-hidden flex flex-col">
+        <div className="flex-1 flex items-center justify-center relative z-20 min-h-0">
+          {/* Rack container - vertically centered */}
+          <div
+            className="relative"
+            style={{
+              width: SLEEVE_HEIGHT,
+              perspective: '800px',
+              perspectiveOrigin: 'center center',
+              transformStyle: 'preserve-3d',
+              transform: `scale(${RACK_SCALE})`,
+              transformOrigin: 'center center',
+            }}
+          >
           {/* Fixed hover grid - invisible, just for interaction */}
-          <div className="relative" style={{ height: albums.length * SLOT_HEIGHT }}>
+          <div
+            className="relative"
+            style={{ height: albums.length * SLOT_HEIGHT, width: SLEEVE_HEIGHT, transformStyle: 'preserve-3d' }}
+          >
             {albums.map((album, index) => (
               <div
                 key={`hover-${album.id}`}
@@ -113,7 +142,7 @@ export function CollectionBrowser({
           {/* Visual sleeves - positioned absolutely, transforms computed */}
           <div
             className="absolute top-0 left-0 right-0 pointer-events-none"
-            style={{ height: albums.length * SLOT_HEIGHT }}
+            style={{ height: albums.length * SLOT_HEIGHT, transformStyle: 'preserve-3d' }}
           >
             {albums.map((album, index) => {
               const isSelected = selectedAlbum?.id === album.id;
@@ -127,15 +156,17 @@ export function CollectionBrowser({
                   style={{
                     top: index * SLOT_HEIGHT,
                     height: SLOT_HEIGHT,
+                    transformStyle: 'preserve-3d',
                   }}
                 >
-                  {/* The sleeve - bottom anchored at slot bottom */}
+                  {/* The sleeve - bottom anchored at slot bottom, centered */}
                   <div
-                    className="absolute left-0 right-0 rounded overflow-hidden"
+                    className="absolute rounded overflow-hidden left-1/2"
                     style={{
                       ...style,
                       bottom: 0,
                       top: 'auto',
+                      marginLeft: -SLEEVE_HEIGHT / 2,
                     }}
                   >
                     {/* Cover image */}
@@ -190,6 +221,7 @@ export function CollectionBrowser({
               );
             })}
           </div>
+        </div>
         </div>
 
         {/* Load more trigger */}
